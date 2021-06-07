@@ -20,13 +20,16 @@ namespace stockmarket
     {
         private readonly ILogger<GetStockList> _logger;
         private readonly IStockDetailService _stockDetailService;
+        private readonly IKafkaProducer _producer;
 
         public GetStockList(
             ILogger<GetStockList> logger,
-            IStockDetailService stockDetailService)
+            IStockDetailService stockDetailService,
+            IKafkaProducer producer)
         {
             _logger = logger;
             _stockDetailService = stockDetailService;
+            _producer = producer;
         }
 
         [FunctionName(nameof(GetStockList))]
@@ -51,6 +54,8 @@ namespace stockmarket
                     }
                 }
 
+                await _producer.SendEvent("stock-hubs", null, "Display All Stock Details");
+
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent(JsonConvert.SerializeObject(stockList), Encoding.UTF8, "application/json")
@@ -59,6 +64,9 @@ namespace stockmarket
             catch (Exception ex)
             {
                 _logger.LogError($"Internal Server Error. Exception: {ex.Message}");
+
+                await _producer.SendEvent("stock-hubs", null, ex.Message);
+
                 return new HttpResponseMessage(HttpStatusCode.InternalServerError);
             }
         }

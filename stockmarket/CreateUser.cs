@@ -21,13 +21,15 @@ namespace stockmarket
     {   
         private readonly ILogger<CreateUser> _logger;
         private readonly IStockService _stockService;
+        private readonly IKafkaProducer _producer;
 
         public CreateUser(
             ILogger<CreateUser> logger,
-            IStockService stockService)
+            IStockService stockService, IKafkaProducer producer)
         {
             _logger = logger;
             _stockService = stockService;
+            _producer = producer;
         }
 
         [FunctionName(nameof(CreateUser))]
@@ -45,6 +47,8 @@ namespace stockmarket
                 if (!headers.TryGetValue("clientId", out var clientId) ||
                    !headers.TryGetValue("clientSecret", out var clientSecret))
                 {
+                    await _producer.SendEvent("stock-hubs", null, "Unauthorized user");
+
                     return new StatusCodeResult(StatusCodes.Status401Unauthorized);
                 }
 
@@ -86,6 +90,8 @@ namespace stockmarket
 
                     if (userDetails.CompanyName == "" || userDetails.CompanyCode == "" || userDetails.StockExchange.Count == 0 || Int64.Parse(userDetails.Turnover) < 100000000 || userDetails.CompanyCeo == "" || userDetails.Website == "")
                     {
+                        await _producer.SendEvent("stock-hubs", null, "Not Acceptable Json Data is Sent");
+
                         result = new StatusCodeResult(StatusCodes.Status406NotAcceptable);
                     }
                     else
@@ -97,22 +103,32 @@ namespace stockmarket
                         if (user == null)
                         {
                             await _stockService.CreateUser(userDetails);
+
+                            await _producer.SendEvent("stock-hubs", null, "User Details have been successfulluy Created");
+
                             result = new StatusCodeResult(StatusCodes.Status201Created);
                         }
                         else
                         {
+                            await _producer.SendEvent("stock-hubs", null, "Not Found");
+
                             result = new StatusCodeResult(StatusCodes.Status302Found);
                         }
                     }
                 }
                 else
                 {
+                    await _producer.SendEvent("stock-hubs", null, "Unauthorized User");
+
                     result = new StatusCodeResult(StatusCodes.Status401Unauthorized);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Internal Server Error. Exception: {ex.Message}");
+
+                await _producer.SendEvent("stock-hubs", null, ex.Message);
+
                 result = new StatusCodeResult(StatusCodes.Status500InternalServerError);
             }
             

@@ -8,7 +8,12 @@
             "Values": {
               "DatabaseName": "stockDB",
               "CollectionName": "userdetails",
-              "StockCollectionName": "stockdetails"
+              "StockCollectionName": "stockdetails",
+              "EventHubConnectionString": "Endpoint=sb://stock-hubs.servicebus.windows.net/;SharedAccessKeyName=event;SharedAccessKey=FfQqEJBchq1gLVGWF1aK0Loz0/4iAi+g6rnZ03RzqIs=;EntityPath=stock-hubs",
+              "EventHubFqdn": "stock-hubs.servicebus.windows.net:9093",
+              "EventHubName": "stock-hubs",
+              "IsLocal": "0",
+              "LD_LIBRARY_PATH":"/home/site/wwwroot/bin/runtimes/linux-x64/native"
             }
           }
         }

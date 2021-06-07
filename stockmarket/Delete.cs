@@ -20,14 +20,16 @@ namespace stockmarket
         private readonly ILogger<Delete> _logger;
         private readonly IStockDetailService _stockDetailService;
         private readonly IStockService _stockService;
+        private readonly IKafkaProducer _producer;
 
         public Delete(
             ILogger<Delete> logger,
-            IStockDetailService stockDetailService, IStockService stockService)
+            IStockDetailService stockDetailService, IStockService stockService, IKafkaProducer producer)
         {
             _logger = logger;
             _stockDetailService = stockDetailService;
             _stockService = stockService;
+            _producer = producer;
         }
 
         [FunctionName("Delete")]
@@ -41,6 +43,8 @@ namespace stockmarket
             {
                 if (companyCode == "")
                 {
+                    await _producer.SendEvent("stock-hubs", null, "No Details to Delete");
+
                     return new HttpResponseMessage(HttpStatusCode.NotFound);
                 }
 
@@ -52,6 +56,8 @@ namespace stockmarket
 
                     await _stockDetailService.RemoveStockById(companyCode);
 
+                    await _producer.SendEvent("stock-hubs", null, "Delete All Details");
+
                     return new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new StringContent("Deleted Successfully")
@@ -60,6 +66,7 @@ namespace stockmarket
                 }
                 else
                 {
+                    await _producer.SendEvent("stock-hubs", null, "No Details to delete");
                     return new HttpResponseMessage(HttpStatusCode.NotFound);
                 }
             }
@@ -67,6 +74,8 @@ namespace stockmarket
             catch (Exception ex)
             {
                 _logger.LogError($"Internal Server Error. Exception thrown: {ex.Message}");
+
+                await _producer.SendEvent("stock-hubs", null, ex.Message);
 
                 return new HttpResponseMessage(HttpStatusCode.InternalServerError);
             }

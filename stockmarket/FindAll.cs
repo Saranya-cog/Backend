@@ -18,13 +18,16 @@ namespace stockmarket
     {
         private readonly ILogger<FindAll> _logger;
         private readonly IStockService _stockService;
+        private readonly IKafkaProducer _producer;
 
         public FindAll(
             ILogger<FindAll> logger,
-            IStockService stockService)
+            IStockService stockService,
+            IKafkaProducer producer)
         {
             _logger = logger;
             _stockService = stockService;
+            _producer = producer;
         }
 
         [FunctionName("FindAll")]
@@ -32,7 +35,7 @@ namespace stockmarket
         [ApiExplorerSettings(GroupName = "v1")]
         public  async Task<HttpResponseMessage> Run(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "v1.0/market/company/getall")] HttpRequest req,
-            ILogger _logger)
+             ILogger _logger)
         {
             try
             {
@@ -40,12 +43,14 @@ namespace stockmarket
 
                 if (userDetails.Count > 0)
                 {
+                    await _producer.SendEvent("stock-hubs",null,"Display All details from users list");
                     return new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new StringContent(JsonConvert.SerializeObject(userDetails), Encoding.UTF8, "application/json")
                     };
                 }
 
+                await _producer.SendEvent("stock-hubs", null, "No Details are there to display");
                 return new HttpResponseMessage(HttpStatusCode.NotFound);
 
             }
@@ -53,6 +58,8 @@ namespace stockmarket
             {
 
                 _logger.LogError($"Internal Server Error. Exception thrown: {ex.Message}");
+
+                await _producer.SendEvent("stock-hubs", null, ex.Message);
 
                 return new HttpResponseMessage(HttpStatusCode.InternalServerError);
             }
